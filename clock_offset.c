@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 	if (n < 0) error("ERROR reading from socket");			
 	delay=(relogio.get_s())-s;	
 	cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
-	relogio.set_s((relogio.get())-delay);
+	//relogio.set_s((relogio.get_s())-delay);
 		
 	usleep(5000000);
 	s= relogio.get_s();
@@ -146,10 +146,51 @@ int main(int argc, char *argv[])
 	if (n < 0) error("ERROR reading from socket");	
 	n = read(sockfd,&s,sizeof(s));
 	if (n < 0) error("ERROR reading from socket");			
-	relogio.set_s(s-offset);	
+	//relogio.set_s(s-offset);	
 	cout <<"\nFollow-up:"<< s <<"\nTempo final:"<< relogio.get_s() <<"\n";
 	//
-
+	cout <<"\nComeça aqui\n";
+	while(1){
+		usleep(5000000);
+		//offset
+		s= relogio.get_s();
+		n = write(sockfd,&s,sizeof(s));	
+		if (n < 0) error("ERROR writing to socket");
+		cout <<"\nDelay Request:"<< s <<"\n";		
+		offset=s;	
+		//n = read(sockfd,&s,sizeof(s));
+		//if (n < 0) error("ERROR reading from socket");	
+		n = read(sockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");			
+		delay=(relogio.get_s())-s;	
+		cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
+		//relogio.set_s((relogio.get_s())-delay);
+		if (delay<0){
+			relogio.correct_drift(-0.1);
+		} else if (delay>0){
+			relogio.correct_drift(0.1);
+		}	
+		usleep(5000000);
+		s= relogio.get_s();
+		n = write(sockfd,&s,sizeof(s));	
+		if (n < 0) error("ERROR writing to socket");
+		cout <<"\nDelay Request:"<< s <<"\n";		
+		offset=s;
+		n = read(sockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");
+		offset=(offset-s)/2;
+		cout <<"\nDelay Response:"<< s <<"\nOffset:"<< offset <<"\n";
+		
+		usleep(5000000);
+		n = read(sockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");	
+		n = read(sockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");			
+		//relogio.set_s(s-offset);	
+		cout <<"\nFollow-up:"<< s <<"\nTempo final:"<< relogio.get_s() <<"\n";
+		//
+		
+	}
 	
 	relogio.printTime();
     pthread_join(first,NULL);
