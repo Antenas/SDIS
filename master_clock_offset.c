@@ -58,6 +58,7 @@ class myClock{
 		alfa=alfa+i; 
 	}
 	void printTime(){
+		//system("clear");
 		std::cout << h;
 		std::cout << ":";
 		std::cout << m;
@@ -123,6 +124,7 @@ int main(int argc, char *argv[])
 	n = write(newsockfd,&s,sizeof(s));     
 	if (n < 0) error("ERROR writing to socket");
 	
+	
 	//offset 
 	s= relogio.get_s();	
 	n = write(newsockfd,&s,sizeof(s));     
@@ -148,6 +150,40 @@ int main(int argc, char *argv[])
 	if (n < 0) error("ERROR writing to socket");
 	cout <<"\nFollow-up:"<< s <<"\n";
 	//
+	cout <<"\nCOMEÇA AQUI\n";
+	while(1){
+		n = read(newsockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");
+		cout <<"\nDelay Request:"<< s <<"\n";
+		//offset 
+		s= relogio.get_s();	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		cout <<"\nFollow-up:"<< s <<"\n";		
+		usleep(5000000);	
+		n = read(newsockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");
+		cout <<"\nDelay Request:"<< s <<"\n";
+			
+		s= relogio.get_s();
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		cout <<"\nDelay Response:"<< s <<"\n";			
+		
+		usleep(5000000);		
+		s= relogio.get_s();	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+				
+		s= relogio.get_s();		
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		cout <<"\nFollow-up:"<< s <<"\n";
+		//
+		
+	}
+	
+	
 	
 	relogio.printTime();
 	pthread_join(first,NULL);
