@@ -38,6 +38,9 @@ class myClock{
 	int get_m(){
 		return m;
 	}
+	int get_alfa(){
+		return alfa;
+	}
 	void increment_1s(){
 		s++;
 		/*if (60==s){
@@ -56,8 +59,10 @@ class myClock{
 	}
 	void correct_drift(float i){
 		alfa=alfa+i; 
+		std::cout << "alfa: " << alfa << "\n";
 	}
 	void printTime(){
+		system("clear");
 		std::cout << h;
 		std::cout << ":";
 		std::cout << m;
@@ -86,7 +91,7 @@ int main(int argc, char *argv[])
 	pthread_t first,second;
 	int i,delay,offset;
 	long long int s=0;
-	
+	int flag=0;
 	int sockfd, portno, n=0;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -130,64 +135,111 @@ int main(int argc, char *argv[])
 	cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
 	//relogio.set_s((relogio.get_s())-delay);
 		
-	usleep(5000000);
-	s= relogio.get_s();
-	n = write(sockfd,&s,sizeof(s));	
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nDelay Request:"<< s <<"\n";		
-	offset=s;
-	n = read(sockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");
-	offset=(offset-s)/2;
-	cout <<"\nDelay Response:"<< s <<"\nOffset:"<< offset <<"\n";
 	
-	usleep(5000000);
-	n = read(sockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");	
-	n = read(sockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");			
-	//relogio.set_s(s-offset);	
-	cout <<"\nFollow-up:"<< s <<"\nTempo final:"<< relogio.get_s() <<"\n";
-	//
-	cout <<"\nComeça aqui\n";
 	while(1){
-		usleep(5000000);
+		usleep(relogio.get_alfa()*5000000);
 		//offset
 		s= relogio.get_s();
 		n = write(sockfd,&s,sizeof(s));	
 		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nDelay Request:"<< s <<"\n";		
+		//cout <<"\nDelay Request:"<< s <<"\n";		
 		offset=s;	
 		//n = read(sockfd,&s,sizeof(s));
 		//if (n < 0) error("ERROR reading from socket");	
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");			
 		delay=(relogio.get_s())-s;	
-		cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
+		//cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
 		//relogio.set_s((relogio.get_s())-delay);
 		if (delay<0){
-			relogio.correct_drift(-0.1);
-		} else if (delay>0){
-			relogio.correct_drift(0.1);
+			//cout <<"\nDelay : "<< delay;
+			//cout <<"\nFlag : "<< flag;
+			if (flag>0){
+				switch (flag) {
+					case 1 : relogio.correct_drift(-0.1); flag=0; break;
+					case 2 : relogio.correct_drift(-0.2); flag=0; break;
+					case 3 : relogio.correct_drift(-0.3); flag=0; break;
+					case 4 : relogio.correct_drift(-0.4); flag=0; break;
+					case 5 : relogio.correct_drift(-0.5); flag=0; break;
+					case 6 : relogio.correct_drift(-0.6); flag=0; break;
+				}
+			}
+			if (flag==0){
+				switch (delay)
+				{
+					case -1 : relogio.correct_drift(-0.1); flag=-1; break;
+					case -2 : relogio.correct_drift(-0.2); flag=-2; break;
+					case -3 : relogio.correct_drift(-0.3); flag=-3; break;
+					case -4 : relogio.correct_drift(-0.4); flag=-4; break;
+					case -5 : relogio.correct_drift(-0.5); flag=-5; break;
+					default : relogio.correct_drift(-0.6); flag=-6; break;
+				}
+			}
+			
+		} else if ((delay>0)){
+			//cout <<"\nDelay : "<< delay;
+			//cout <<"\nFlag : "<< flag;
+			if (flag<0){
+				switch (flag) {
+					case -1 : relogio.correct_drift(0.1); flag=0; break;
+					case -2 : relogio.correct_drift(0.2); flag=0; break;
+					case -3 : relogio.correct_drift(0.3); flag=0; break;
+					case -4 : relogio.correct_drift(0.4); flag=0; break;
+					case -5 : relogio.correct_drift(0.5); flag=0; break;
+					case -6 : relogio.correct_drift(0.6); flag=0; break;
+				}
+			}
+			if (flag==0){
+				switch (delay)
+				{
+					case 1 : relogio.correct_drift(0.1); flag=1; break;
+					case 2 : relogio.correct_drift(0.2); flag=2; break;
+					case 3 : relogio.correct_drift(0.3); flag=3; break;
+					case 4 : relogio.correct_drift(0.4); flag=4; break;
+					case 5 : relogio.correct_drift(0.5); flag=5; break;
+					default : relogio.correct_drift(0.6); flag=6; break;
+				}
+			}
+		}
+		else //delay =0 
+		{
+			//cout << "HELLO\n";
+			switch (flag)
+			{
+				case -1 : relogio.correct_drift(0.1); flag=-1; break;
+				case -2 : relogio.correct_drift(0.2); flag=-2; break;
+				case -3 : relogio.correct_drift(0.3); flag=-3; break;
+				case -4 : relogio.correct_drift(0.4); flag=-4; break;
+				case -5 : relogio.correct_drift(0.5); flag=-5; break;
+				case -6 : relogio.correct_drift(0.6); flag=-6; break;
+				case 1 : relogio.correct_drift(-0.1); flag=-1; break;
+				case 2 : relogio.correct_drift(-0.2); flag=-2; break;
+				case 3 : relogio.correct_drift(-0.3); flag=-3; break;
+				case 4 : relogio.correct_drift(-0.4); flag=-4; break;
+				case 5 : relogio.correct_drift(-0.5); flag=-5; break;
+				case 6 : relogio.correct_drift(-0.6); flag=-6; break;
+				default : break;
+			}
+			flag=0;
 		}	
-		usleep(5000000);
+		//usleep(5000000);
 		s= relogio.get_s();
 		n = write(sockfd,&s,sizeof(s));	
 		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nDelay Request:"<< s <<"\n";		
+		//cout <<"\nDelay Request:"<< s <<"\n";		
 		offset=s;
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");
 		offset=(offset-s)/2;
-		cout <<"\nDelay Response:"<< s <<"\nOffset:"<< offset <<"\n";
+		//cout <<"\nDelay Response:"<< s <<"\nOffset:"<< offset <<"\n";
 		
-		usleep(5000000);
+		//usleep(5000000);
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");	
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");			
 		//relogio.set_s(s-offset);	
-		cout <<"\nFollow-up:"<< s <<"\nTempo final:"<< relogio.get_s() <<"\n";
+		//cout <<"\nFollow-up:"<< s <<"\nTempo final:"<< relogio.get_s() <<"\n";
 		//
 		
 	}
