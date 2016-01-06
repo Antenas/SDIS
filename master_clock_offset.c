@@ -81,20 +81,83 @@ void *task(void *argument){
      relogio.run();
 }
 
+void *task_correct(void* i){
+	
+	using namespace std;
+	int sockfd,newsockfd;
+	int portno = *((int*) i);
+    socklen_t clilen;
+    char buffer[256];
+    struct sockaddr_in serv_addr, cli_addr;
+    int n;
+    long long int s; 
+	
+	 cout <<"\nSTART\n";		
+     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+     if (sockfd < 0) 
+        error("ERROR opening socket");
+     bzero((char *) &serv_addr, sizeof(serv_addr));
+     serv_addr.sin_family = AF_INET;
+     serv_addr.sin_addr.s_addr = INADDR_ANY;
+     serv_addr.sin_port = htons(portno);
+     if (bind(sockfd, (struct sockaddr *) &serv_addr,
+              sizeof(serv_addr)) < 0) 
+             error("ERROR on binding");
+     listen(sockfd,5);
+	 clilen = sizeof(cli_addr);
+	 newsockfd = accept(sockfd, 
+				(struct sockaddr *) &cli_addr, 
+				&clilen);
+	 if (newsockfd < 0) 
+		error("ERROR on accept");
+            
+	relogio.printTime();
+	s= relogio.get_s();	
+	n = write(newsockfd,&s,sizeof(s));     
+	if (n < 0) error("ERROR writing to socket");	
+	
+	//offset 
+	s= relogio.get_s();	
+	n = write(newsockfd,&s,sizeof(s));     
+	if (n < 0) error("ERROR writing to socket");		
+	cout <<"\nCOMEÇA AQUI\n";
+	while(1){
+		n = read(newsockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");
+		//offset 
+		s= relogio.get_s();	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		n = read(newsockfd,&s,sizeof(s));
+		if (n < 0) error("ERROR reading from socket");
+			
+		s= relogio.get_s();
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		s= relogio.get_s();	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+				
+		s= relogio.get_s();		
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0) error("ERROR writing to socket");
+		
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	
 	using namespace std;
-	pthread_t first;
-	int sockfd, newsockfd, portno;
+	pthread_t first[10];
+	int sockfd, newsockfd, portno,newport,i=1;
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int n;
     long long int s;  
-
 	
-	pthread_create( &first, NULL, task, (void*) "thread 1");
+	pthread_create( &first[0], NULL, task, (void*) "thread 1");
 	
      if (argc < 2) {
          fprintf(stderr,"ERROR, no port provided\n");
@@ -111,83 +174,27 @@ int main(int argc, char *argv[])
      if (bind(sockfd, (struct sockaddr *) &serv_addr,
               sizeof(serv_addr)) < 0) 
              error("ERROR on binding");
-	listen(sockfd,5);
-    clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, 
-                (struct sockaddr *) &cli_addr, 
-                &clilen);
-    if (newsockfd < 0) 
-         error("ERROR on accept");
-	
-	relogio.printTime();
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	
-	
-	//offset 
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nFollow-up:"<< s <<"\n";		
-	usleep(5000000);	
-	n = read(newsockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");
-	cout <<"\nDelay Request:"<< s <<"\n";
+    while(1){
+		listen(sockfd,5);
+		clilen = sizeof(cli_addr);
+		newsockfd = accept(sockfd, 
+					(struct sockaddr *) &cli_addr, 
+					&clilen);
+		if (newsockfd < 0) 
+			error("ERROR on accept");
+		newport = portno + i;	
 		
-	s= relogio.get_s();
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nDelay Response:"<< s <<"\n";			
-	
-	usleep(5000000);		
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-			
-	s= relogio.get_s();		
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nFollow-up:"<< s <<"\n";
-	//
-	cout <<"\nCOMEÇA AQUI\n";
-	while(1){
-		n = read(newsockfd,&s,sizeof(s));
-		if (n < 0) error("ERROR reading from socket");
-		cout <<"\nDelay Request:"<< s <<"\n";
-		//offset 
-		s= relogio.get_s();	
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nFollow-up:"<< s <<"\n";		
-		usleep(5000000);	
-		n = read(newsockfd,&s,sizeof(s));
-		if (n < 0) error("ERROR reading from socket");
-		cout <<"\nDelay Request:"<< s <<"\n";
-			
-		s= relogio.get_s();
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nDelay Response:"<< s <<"\n";			
+        write(newsockfd,&newport,sizeof(newport));
+		pthread_create( &first[1], NULL, task_correct,(void*) &newport);
 		
-		usleep(5000000);		
-		s= relogio.get_s();	
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-				
-		s= relogio.get_s();		
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nFollow-up:"<< s <<"\n";
-		//
-		
+		i++;
 	}
-	
-	
+		
 	
 	relogio.printTime();
-	pthread_join(first,NULL);
-    
+	for(i=0;i<10;i++){
+	pthread_join(first[i],NULL);
+	}   
     close(newsockfd);
     close(sockfd);
 }
