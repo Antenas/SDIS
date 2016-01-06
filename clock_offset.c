@@ -62,7 +62,7 @@ class myClock{
 		std::cout << "alfa: " << alfa << "\n";
 	}
 	void printTime(){
-		system("clear");
+		//system("clear");
 		std::cout << h;
 		std::cout << ":";
 		std::cout << m;
@@ -125,10 +125,34 @@ int main(int argc, char *argv[])
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
 		
-	//offset
-	relogio.printTime();		
+			
 	n = read(sockfd,&s,sizeof(s));
 	if (n < 0) error("ERROR reading from socket");	
+	cout << s;
+	close(sockfd);
+	
+	portno = s;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    server = gethostbyname(argv[1]);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
+
+
+	n = read(sockfd,&s,sizeof(s));
+	if (n < 0) error("ERROR reading from socket");	
+	cout << s;
 	n = read(sockfd,&s,sizeof(s));
 	if (n < 0) error("ERROR reading from socket");			
 	delay=(relogio.get_s())-s;	
@@ -222,7 +246,6 @@ int main(int argc, char *argv[])
 			}
 			flag=0;
 		}	
-		//usleep(5000000);
 		s= relogio.get_s();
 		n = write(sockfd,&s,sizeof(s));	
 		if (n < 0) error("ERROR writing to socket");
