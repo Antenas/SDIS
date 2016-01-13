@@ -16,7 +16,7 @@ void error(const char *msg)
 }
 
 class myClock{
-	long long int s,m,h;
+	long long int s,m,h, ms;
 	float alfa;
 	
 	public:
@@ -24,6 +24,7 @@ class myClock{
 		s=0;
 		m=0;
 		h=0;
+		ms=0;
 		alfa=1;	
 	}
 	void set_s(long long int i){
@@ -31,6 +32,9 @@ class myClock{
 	}
 	int get_s(){
 		return s;
+	}
+	int get_ms(){
+		return ms;
 	}
 	int get_h(){
 		return h;
@@ -57,6 +61,23 @@ class myClock{
 		}*/
 		
 	}
+	void increment_ms(){
+		ms++;
+		/*if (100==ms) {s++;}*/
+		/*if (60==s){
+			m++;
+			s=0;
+			if (60==m){
+				h++;
+				m=0;
+				if (24==h)
+				{
+					h=0;					
+				}
+			}
+		}*/
+		
+	}
 	void correct_drift(float i){
 		alfa=alfa+i; 
 		std::cout << "alfa: " << alfa << "\n";
@@ -68,13 +89,15 @@ class myClock{
 		std::cout << m;
 		std::cout << ":";
 		std::cout << s;
+		std::cout << ":";
+		std::cout << ms;
 		std::cout << "\n";
 	}
 	void run(){
 		for(; ;){
-			increment_1s();
-			printTime();
-			usleep(1000000*alfa);
+			increment_ms();
+			//printTime();
+			usleep(1000*alfa);
 		}		
 	}	
 };
@@ -164,16 +187,16 @@ int main(int argc, char *argv[])
 	while(1){
 		//usleep(relogio.get_alfa()*5000000);
 		n = read(sockfd,&s,sizeof(s));
-		ts1=relogio.get_s();
+		ts1=relogio.get_ms();
 		if (n < 0) error("ERROR reading from socket");	
 		//cout << "SyncMessage" << s;
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");
 		offset=ts1-s;	
 		//cout << "Offset" << offset;
-		usleep(relogio.get_alfa()*5000000);
+		usleep(relogio.get_alfa()*1000000);//sleep 1s
 		//offset
-		ts2= relogio.get_s();
+		ts2= relogio.get_ms();
 		n = write(sockfd,&s,sizeof(s));	
 		if (n < 0) error("ERROR writing to socket");
 		//cout <<"\nDelay Request:"<< s <<"\n";		
