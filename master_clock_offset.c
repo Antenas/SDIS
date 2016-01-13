@@ -66,20 +66,26 @@ class myClock{
 	}
 	void increment_ms(){
 		ms++;
-		/*if (100==ms) {s++;}*/
-		/*if (60==s){
-			m++;
-			s=0;
-			if (60==m){
-				h++;
-				m=0;
-				if (24==h)
-				{
-					h=0;					
+		if (1000==ms) {
+			s++;
+			ms=0;
+			if (60==s){
+				m++;
+				s=0;
+				if (60==m){
+					h++;
+					m=0;
+					if (24==h)
+					{
+						h=0;					
+					}
 				}
 			}
-		}*/
+		}
 		
+	}
+	long long get_count(){
+		return ms+1000*s+1000*60*m+1000*60*60*h;
 	}
 	void correct_drift(float i){
 		alfa=alfa+i; 
@@ -115,6 +121,7 @@ void *task_correct(void* i){
 	using namespace std;
 	int sockfd,newsockfd;
 	int portno = *((int*) i);
+	int jitter=0;
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
@@ -153,12 +160,16 @@ void *task_correct(void* i){
 			
 	cout <<"\nCOMEÇA AQUI\n";
 	while(1){
-		s= relogio.get_ms();	
+		s= relogio.get_count();	
 		//sync
+		jitter=rand()%100+1;//jitter between 1 and 100
+		usleep(jitter*10000);//100ms
 		n = write(newsockfd,&s,sizeof(s));     
 		if (n < 0){ warning("ERROR writing to socket");break;}
 		
 		//follow-up
+		jitter=rand()%100+1;
+		usleep(jitter*10000);//100ms
 		n = write(newsockfd,&s,sizeof(s));     
 		if (n < 0){ warning("ERROR writing to socket");break;}
 		
@@ -167,17 +178,22 @@ void *task_correct(void* i){
 		if (n < 0){ warning("ERROR reading from socket");break;}
 				
 		//delay response 
-		s= relogio.get_ms();	
+		jitter=rand()%100+1;
+		s= relogio.get_count();	
+		usleep(jitter*10000);//100ms
 		n = write(newsockfd,&s,sizeof(s));     
 		if (n < 0){ warning("ERROR writing to socket");break;}		
 		
 		//sync
-		s= relogio.get_ms();
+		s= relogio.get_count();
+		usleep(jitter*10000);//100ms
 		n = write(newsockfd,&s,sizeof(s));     
 		if (n < 0){ warning("ERROR writing to socket");break;}
 		
 		//follow-up	
-		n = write(newsockfd,&s,sizeof(s));     
+		jitter=rand()%100+1;
+		usleep(jitter*10000);//100ms  
+		n = write(newsockfd,&s,sizeof(s)); 
 		if (n < 0){ warning("ERROR writing to socket");break;}		
 	}	
     close(newsockfd);
