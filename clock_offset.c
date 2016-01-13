@@ -16,7 +16,7 @@ void error(const char *msg)
 }
 
 class myClock{
-	long long int s,m,h;
+	long long int s,m,h, ms;
 	float alfa;
 	
 	public:
@@ -24,6 +24,7 @@ class myClock{
 		s=0;
 		m=0;
 		h=0;
+		ms=0;
 		alfa=1;	
 	}
 	void set_s(long long int i){
@@ -31,6 +32,9 @@ class myClock{
 	}
 	int get_s(){
 		return s;
+	}
+	int get_ms(){
+		return ms;
 	}
 	int get_h(){
 		return h;
@@ -57,6 +61,30 @@ class myClock{
 		}*/
 		
 	}
+	void increment_ms(){
+		ms++;
+		if (1000==ms) {
+			ms=0;
+			s++;
+			
+			if (60==s){
+				m++;
+				s=0;
+				if (60==m){
+					h++;
+					m=0;
+					if (24==h)
+					{
+						h=0;					
+					}
+				}
+			}
+		}
+		
+	}
+	long long get_count(){
+		return ms+1000*s+1000*60*m+1000*60*60*h;
+	}
 	void correct_drift(float i){
 		alfa=alfa+i; 
 		std::cout << "alfa: " << alfa << "\n";
@@ -68,13 +96,15 @@ class myClock{
 		std::cout << m;
 		std::cout << ":";
 		std::cout << s;
+		std::cout << ":";
+		std::cout << ms;
 		std::cout << "\n";
 	}
 	void run(){
 		for(; ;){
-			increment_1s();
+			increment_ms();
 			printTime();
-			usleep(1000000*alfa);
+			usleep(1000*alfa);
 		}		
 	}	
 };
@@ -85,6 +115,12 @@ void *task(void *argument){
      relogio.run();
 }
 
+struct clock_data {
+		long long tm1;
+		long long ts1;
+		long long delay;
+};
+
 int main(int argc, char *argv[])
 {	
 	using namespace std;
@@ -93,8 +129,12 @@ int main(int argc, char *argv[])
 	long long int s=0, ts2=0, ts1=0, erro=0;
 	int flag=0;
 	int sockfd, portno, n=0;
+	int jitter;
     struct sockaddr_in serv_addr;
     struct hostent *server;
+    
+	int cycle=0;
+	clock_data info_rel[2000]={0};
 
     char buffer[256];
     
@@ -149,31 +189,28 @@ int main(int argc, char *argv[])
 
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         error("ERROR connecting");
-
-
-	/*n = read(sockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");	
-	cout << s;
-	n = read(sockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");			
-	delay=(relogio.get_s())-s;	
-	cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
-	//relogio.set_s((relogio.get_s())-delay);*/
 		
 	
 	while(1){
 		//usleep(relogio.get_alfa()*5000000);
+				
 		n = read(sockfd,&s,sizeof(s));
-		ts1=relogio.get_s();
+		ts1=relogio.get_count();
 		if (n < 0) error("ERROR reading from socket");	
 		//cout << "SyncMessage" << s;
 		n = read(sockfd,&s,sizeof(s));
 		if (n < 0) error("ERROR reading from socket");
 		offset=ts1-s;	
+		if (cycle <2000){
+			info_rel[cycle].ts1=ts1;
+			info_rel[cycle].tm1=s;	
+		}
 		//cout << "Offset" << offset;
-		usleep(relogio.get_alfa()*5000000);
+		usleep(relogio.get_alfa()*1000000);//sleep 1s
 		//offset
-		ts2= relogio.get_s();
+		ts2= relogio.get_count();
+		jitter=rand()%100+1;
+		usleep(10000*jitter);
 		n = write(sockfd,&s,sizeof(s));	
 		if (n < 0) error("ERROR writing to socket");
 		//cout <<"\nDelay Request:"<< s <<"\n";		
@@ -185,7 +222,17 @@ int main(int argc, char *argv[])
 		if (n < 0) error("ERROR reading from socket");		
 		delay=(ts2-offset)-s;//s=tm2
 		delay=delay/2;
+		if (cycle <2000){
+			info_rel[cycle].delay=delay;
+			//printf("ts1=%lld\ntm1=%lld\ndelay=%lld\n",info_rel[cycle].ts1,info_rel[cycle].tm1, info_rel[cycle].delay	);
+			cycle++;
 			
+			if (2000==cycle){
+				printf("hi\n");//Escrever em ficheiro				
+				printf("ts1=%lld\ntm1=%lld\ndelay=%lld\n",info_rel[cycle].ts1,info_rel[cycle].tm1, info_rel[cycle].delay	);
+				
+			}
+		}
 		erro=offset+delay;
 		//cout <<"\nFollow-up:"<< s <<"\nDelay:"<< delay <<"\n";
 		//relogio.set_s((relogio.get_s())-delay);
