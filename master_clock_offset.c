@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cstdio>
+#include <signal.h>
 
 void error(const char *msg)
 {
@@ -15,8 +16,13 @@ void error(const char *msg)
     exit(0);
 }
 
+void warning(const char *msg)
+{
+    perror(msg);
+    return ;
+}
 class myClock{
-	long long int s,m,h;
+	long long int s,m,h, ms;
 	float alfa;
 	
 	public:
@@ -24,10 +30,14 @@ class myClock{
 		s=0;
 		m=0;
 		h=0;
+		ms=0;
 		alfa=1;	
 	}	
 	void set_s(long long int i){
 		s=i;	
+	}
+	int get_ms(){
+		return ms;
 	}
 	int get_s(){
 		return s;
@@ -54,6 +64,23 @@ class myClock{
 		}*/
 		
 	}
+	void increment_ms(){
+		ms++;
+		/*if (100==ms) {s++;}*/
+		/*if (60==s){
+			m++;
+			s=0;
+			if (60==m){
+				h++;
+				m=0;
+				if (24==h)
+				{
+					h=0;					
+				}
+			}
+		}*/
+		
+	}
 	void correct_drift(float i){
 		alfa=alfa+i; 
 	}
@@ -64,13 +91,15 @@ class myClock{
 		std::cout << m;
 		std::cout << ":";
 		std::cout << s;
+		std::cout << ":";
+		std::cout << ms;
 		std::cout << "\n";
 	}
 	void run(){
 		for(; ;){
-			increment_1s();
+			increment_ms();
 			printTime();
-			usleep(1000000*alfa);
+			usleep(1000*alfa);
 		}		
 	}	
 };
@@ -81,20 +110,93 @@ void *task(void *argument){
      relogio.run();
 }
 
+void *task_correct(void* i){
+	
+	using namespace std;
+	int sockfd,newsockfd;
+	int portno = *((int*) i);
+    socklen_t clilen;
+    char buffer[256];
+    struct sockaddr_in serv_addr, cli_addr;
+    int n;
+    long long int s; 
+	
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set,SIGPIPE);
+    pthread_sigmask(SIG_BLOCK,&set,NULL);
+    
+	 cout <<"\nSTART\n";		
+     sockfd = socket(AF_INET, SOCK_STREAM, 0);
+     if (sockfd < 0){ 
+        warning("ERROR opening socket");
+        return 0;
+	}
+     bzero((char *) &serv_addr, sizeof(serv_addr));
+     serv_addr.sin_family = AF_INET;
+     serv_addr.sin_addr.s_addr = INADDR_ANY;
+     serv_addr.sin_port = htons(portno);
+     if (bind(sockfd, (struct sockaddr *) &serv_addr,
+              sizeof(serv_addr)) < 0) {
+             warning("ERROR on binding");
+             return 0;
+             }
+     listen(sockfd,5);
+	 clilen = sizeof(cli_addr);
+	 newsockfd = accept(sockfd, 
+				(struct sockaddr *) &cli_addr, 
+				&clilen);
+	 if (newsockfd < 0) 
+		warning("ERROR on accept");
+            
+	relogio.printTime();	
+			
+	cout <<"\nCOMEÇA AQUI\n";
+	while(1){
+		s= relogio.get_ms();	
+		//sync
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0){ warning("ERROR writing to socket");break;}
+		
+		//follow-up
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0){ warning("ERROR writing to socket");break;}
+		
+		//delay request
+		n = read(newsockfd,&s,sizeof(s));
+		if (n < 0){ warning("ERROR reading from socket");break;}
+				
+		//delay response 
+		s= relogio.get_ms();	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0){ warning("ERROR writing to socket");break;}		
+		
+		//sync
+		s= relogio.get_ms();
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0){ warning("ERROR writing to socket");break;}
+		
+		//follow-up	
+		n = write(newsockfd,&s,sizeof(s));     
+		if (n < 0){ warning("ERROR writing to socket");break;}		
+	}	
+    close(newsockfd);
+    close(sockfd);
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
 	
 	using namespace std;
-	pthread_t first;
-	int sockfd, newsockfd, portno;
+	pthread_t first[10];
+	int sockfd, newsockfd, portno,newport,i=1;
     socklen_t clilen;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int n;
     long long int s;  
-
-	
-	pthread_create( &first, NULL, task, (void*) "thread 1");
+	pthread_create( &first[0], NULL, task, (void*) "thread 1");
 	
      if (argc < 2) {
          fprintf(stderr,"ERROR, no port provided\n");
@@ -111,83 +213,25 @@ int main(int argc, char *argv[])
      if (bind(sockfd, (struct sockaddr *) &serv_addr,
               sizeof(serv_addr)) < 0) 
              error("ERROR on binding");
-	listen(sockfd,5);
-    clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, 
-                (struct sockaddr *) &cli_addr, 
-                &clilen);
-    if (newsockfd < 0) 
-         error("ERROR on accept");
-	
-	relogio.printTime();
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	
-	
-	//offset 
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nFollow-up:"<< s <<"\n";		
-	usleep(5000000);	
-	n = read(newsockfd,&s,sizeof(s));
-	if (n < 0) error("ERROR reading from socket");
-	cout <<"\nDelay Request:"<< s <<"\n";
-		
-	s= relogio.get_s();
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nDelay Response:"<< s <<"\n";			
-	
-	usleep(5000000);		
-	s= relogio.get_s();	
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-			
-	s= relogio.get_s();		
-	n = write(newsockfd,&s,sizeof(s));     
-	if (n < 0) error("ERROR writing to socket");
-	cout <<"\nFollow-up:"<< s <<"\n";
-	//
-	cout <<"\nCOMEÇA AQUI\n";
-	while(1){
-		n = read(newsockfd,&s,sizeof(s));
-		if (n < 0) error("ERROR reading from socket");
-		cout <<"\nDelay Request:"<< s <<"\n";
-		//offset 
-		s= relogio.get_s();	
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nFollow-up:"<< s <<"\n";		
-		usleep(5000000);	
-		n = read(newsockfd,&s,sizeof(s));
-		if (n < 0) error("ERROR reading from socket");
-		cout <<"\nDelay Request:"<< s <<"\n";
-			
-		s= relogio.get_s();
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nDelay Response:"<< s <<"\n";			
-		
-		usleep(5000000);		
-		s= relogio.get_s();	
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-				
-		s= relogio.get_s();		
-		n = write(newsockfd,&s,sizeof(s));     
-		if (n < 0) error("ERROR writing to socket");
-		cout <<"\nFollow-up:"<< s <<"\n";
-		//
-		
+    while(1){
+		listen(sockfd,5);
+		clilen = sizeof(cli_addr);
+		newsockfd = accept(sockfd, 
+					(struct sockaddr *) &cli_addr, 
+					&clilen);
+		if (newsockfd < 0){ 
+			warning("ERROR on accept"); continue;}
+		newport = portno + i;		
+        write(newsockfd,&newport,sizeof(newport));
+		pthread_create( &first[i], NULL, task_correct,(void*) &newport);		
+		i++;
 	}
-	
-	
+		
 	
 	relogio.printTime();
-	pthread_join(first,NULL);
-    
+	for(i=0;i<10;i++){
+	pthread_join(first[i],NULL);
+	}   
     close(newsockfd);
     close(sockfd);
 }
