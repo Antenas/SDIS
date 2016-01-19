@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <fstream>
 
 void error(const char *msg)
 {
@@ -47,7 +48,7 @@ class myClock{
 	}
 	void increment_1s(){
 		s++;
-		/*if (60==s){
+		if (60==s){
 			m++;
 			s=0;
 			if (60==m){
@@ -58,7 +59,7 @@ class myClock{
 					h=0;					
 				}
 			}
-		}*/
+		}
 		
 	}
 	void increment_ms(){
@@ -103,7 +104,7 @@ class myClock{
 	void run(){
 		for(; ;){
 			increment_ms();
-			printTime();
+			//printTime();
 			usleep(1000*alfa);
 		}		
 	}	
@@ -137,6 +138,10 @@ int main(int argc, char *argv[])
 	clock_data info_rel[2000]={0};
 
     char buffer[256];
+    
+    ofstream outFile;
+    outFile.open("output.txt");
+    
     
 	//relogio.printTime();
 	cout << "Hello World!\n";
@@ -227,10 +232,15 @@ int main(int argc, char *argv[])
 			//printf("ts1=%lld\ntm1=%lld\ndelay=%lld\n",info_rel[cycle].ts1,info_rel[cycle].tm1, info_rel[cycle].delay	);
 			cycle++;
 			
-			if (2000==cycle){
+			if (20==cycle){
 				printf("hi\n");//Escrever em ficheiro				
 				printf("ts1=%lld\ntm1=%lld\ndelay=%lld\n",info_rel[cycle].ts1,info_rel[cycle].tm1, info_rel[cycle].delay	);
-				
+				for (int i=0; i<cycle; i++){
+					outFile<<info_rel[i].ts1 <<" " << info_rel[i].tm1 <<" " << info_rel[i].delay;
+					outFile<<"\n";
+				}
+				outFile.close();
+				cycle++;
 			}
 		}
 		erro=offset+delay;
